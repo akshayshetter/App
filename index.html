@@ -2,43 +2,152 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<link rel="apple-touch-icon" href="icon-192.png">
+
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <title>Auto Bowl Speed Pro</title>
+
 <style>
-body{margin:0;background:#000;color:#00ff88;font-family:sans-serif}
-.install-btn{
-position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-padding:14px 26px;font-size:16px;border-radius:30px;
-background:#00ff88;color:#000;border:none;font-weight:bold;display:none;
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #000;
+  color: #00ff88;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+
+#camera {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+#speed {
+  font-size: 4rem;
+  font-weight: bold;
+  color: #00ff88;
+  display: none;
+}
+
+#status {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1rem;
+  opacity: 0.8;
 }
 </style>
 </head>
+
 <body>
-<h1 style="text-align:center;margin-top:40vh;">Auto Bowl Speed Pro</h1>
-<button class="install-btn" id="installBtn">Install App</button>
+
+<video id="camera" autoplay playsinline muted></video>
+
+<div id="status">Point camera sideways to pitch</div>
+
+<div class="overlay">
+  <div id="speed">0 KM/H</div>
+</div>
 
 <script>
-let deferredPrompt;
-const btn = document.getElementById('installBtn');
+const video = document.getElementById("camera");
+const speedEl = document.getElementById("speed");
+const statusEl = document.getElementById("status");
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  btn.style.display = 'block';
-});
+let lastFrame = null;
+let releaseTime = null;
 
-btn.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  btn.style.display = 'none';
-});
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+    video.srcObject = stream;
+  } catch (e) {
+    alert("Camera permission required");
+  }
+}
+
+function detectMotion() {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  function loop() {
+    if (video.videoWidth === 0) {
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video, 0, 0);
+    const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    if (lastFrame) {
+      let diff = 0;
+      for (let i = 0; i < frame.data.length; i += 4) {
+        diff += Math.abs(frame.data[i] - lastFrame.data[i]);
+      }
+
+      if (diff > 2000000 && !releaseTime) {
+        releaseTime = Date.now();
+        statusEl.textContent = "Ball released...";
+      }
+
+      if (releaseTime && diff > 1500000) {
+        const impact = Date.now();
+        const time = (impact - releaseTime) / 1000;
+        const speed = (22.12 / time) * 3.6;
+
+        if (speed > 30 && speed < 180) {
+          speedEl.textContent = Math.round(speed) + " KM/H";
+          speedEl.style.display = "block";
+          statusEl.textContent = "Measured";
+
+          setTimeout(() => {
+            speedEl.style.display = "none";
+            statusEl.textContent = "Ready";
+            releaseTime = null;
+          }, 3000);
+        }
+      }
+    }
+
+    lastFrame = frame;
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+}
+
+// Prevent screen sleep
+if ("wakeLock" in navigator) {
+  navigator.wakeLock.request("screen").catch(() => {});
+}
+
+startCamera();
+detectMotion();
 </script>
+
 </body>
 </html>
