@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Auto Bowl Speed Pro</title>
+<style>
+body{margin:0;background:#000;color:#00ff88;font-family:sans-serif}
+.install-btn{
+position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+padding:14px 26px;font-size:16px;border-radius:30px;
+background:#00ff88;color:#000;border:none;font-weight:bold;display:none;
+}
+</style>
+</head>
+<body>
+<h1 style="text-align:center;margin-top:40vh;">Auto Bowl Speed Pro</h1>
+<button class="install-btn" id="installBtn">Install App</button>
+
+<script>
+let deferredPrompt;
+const btn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  btn.style.display = 'block';
+});
+
+btn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  btn.style.display = 'none';
+});
+</script>
+</body>
+</html>
